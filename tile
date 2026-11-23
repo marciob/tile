@@ -1,0 +1,44 @@
+#!/usr/bin/osascript -l JavaScript
+// tile: arrange all visible Terminal windows in a grid that fills the screen.
+// Usage:
+//   tile         grid with an automatic number of columns
+//   tile 3       grid with 3 columns
+// Minimized windows are not changed.
+
+ObjC.import('AppKit');
+
+function run(argv) {
+  const terminal = Application('Terminal');
+  const windows = terminal.windows().filter(w => {
+    try { return w.visible() && !w.miniaturized(); } catch (e) { return false; }
+  });
+  const count = windows.length;
+  if (count === 0) return 'No Terminal windows to arrange.';
+
+  // Use the screen with the menu bar. visibleFrame excludes the menu bar and the Dock.
+  const screen = $.NSScreen.screens.objectAtIndex(0);
+  const full = screen.frame;
+  const vis = screen.visibleFrame;
+  const left = vis.origin.x;
+  const top = full.size.height - (vis.origin.y + vis.size.height);
+  const width = vis.size.width;
+  const height = vis.size.height;
+
+  const requested = parseInt(argv[0], 10);
+  const cols = requested > 0 ? Math.min(requested, count) : Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const cellH = Math.floor(height / rows);
+  // All windows have the same width. If the last row has fewer windows,
+  // the space at the right of that row stays empty.
+  const cellW = Math.floor(width / cols);
+
+  windows.forEach((w, i) => {
+    const row = Math.floor(i / cols);
+    const col = i - row * cols;
+    const x = left + col * cellW;
+    const y = top + row * cellH;
+    w.bounds = { x: x, y: y, width: cellW, height: cellH };
+  });
+
+  return `Arranged ${count} windows: ${cols} columns, ${rows} rows.`;
+}
